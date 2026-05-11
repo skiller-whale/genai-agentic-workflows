@@ -1,7 +1,8 @@
 import { hashWithSalt, isValidData } from "./hash";
+import { InMemoryStorage, Storage } from "./storage";
 
 const SECRET_SALT = process.env.SECRET_SALT || "default-secret-salt";
-const contentStore = new Map<string, string>();
+const contentStore: Storage = new InMemoryStorage();
 const PORT = parseInt(process.env.PORT || "4000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
@@ -45,7 +46,7 @@ const server = Bun.serve({
           return jsonResponse({ error: "Invalid request body. 'text' must be a string." }, 400);
         }
         const hash = hashWithSalt({ text }, SECRET_SALT);
-        contentStore.set(hash, text);
+        await contentStore.set(hash, text);
         return jsonResponse({ url: `/content/${hash}` });
       } catch {
         return jsonResponse({ error: "Invalid JSON in request body" }, 400);
@@ -55,7 +56,7 @@ const server = Bun.serve({
     // Content retrieval endpoint
     const contentMatch = url.pathname.match(/^\/content\/([a-f0-9]{64})$/);
     if (contentMatch && req.method === "GET") {
-      const text = contentStore.get(contentMatch[1]);
+      const text = await contentStore.get(contentMatch[1]);
       if (text === undefined) {
         return jsonResponse({ error: "Not found" }, 404);
       }
