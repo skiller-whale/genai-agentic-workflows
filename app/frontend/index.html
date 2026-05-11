@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PASTEBIN_0x</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --green: #00ff41;
+    --dim-green: #00b32c;
+    --dark-green: #003b00;
+    --bg: #0d0d0d;
+    --bg2: #111;
+    --red: #ff003c;
+    --cyan: #00e5ff;
+    --yellow: #ffe600;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* CRT flicker */
+  @keyframes flicker {
+    0%   { opacity: 1; }
+    92%  { opacity: 1; }
+    93%  { opacity: 0.8; }
+    94%  { opacity: 1; }
+    96%  { opacity: 0.9; }
+    100% { opacity: 1; }
+  }
+
+  body { animation: flicker 8s infinite; }
+
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @keyframes glitch {
+    0%   { transform: translate(0); }
+    20%  { transform: translate(-2px, 1px); clip-path: inset(10% 0 60% 0); }
+    40%  { transform: translate(2px, -1px); clip-path: inset(60% 0 10% 0); }
+    60%  { transform: translate(-1px, 2px); clip-path: inset(30% 0 40% 0); }
+    80%  { transform: translate(1px, -2px); clip-path: inset(0); }
+    100% { transform: translate(0); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { text-shadow: 0 0 5px var(--green), 0 0 10px var(--green); }
+    50%       { text-shadow: 0 0 10px var(--green), 0 0 25px var(--green), 0 0 40px var(--dim-green); }
+  }
+
+  @keyframes typing {
+    from { width: 0; }
+    to   { width: 100%; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  #matrix-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    opacity: 0.07;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  header {
+    border-bottom: 1px solid var(--dim-green);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .logo {
+    font-size: 2.8rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    animation: pulse-glow 3s ease-in-out infinite;
+    color: var(--green);
+  }
+
+  .logo .bracket { color: var(--cyan); }
+
+  .tagline {
+    font-size: 0.75rem;
+    color: var(--dim-green);
+    margin-top: 0.3rem;
+    letter-spacing: 0.2em;
+  }
+
+  .status-bar {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.7rem;
+    color: var(--dim-green);
+    margin-top: 0.6rem;
+  }
+
+  .status-bar span::before { content: '> '; color: var(--cyan); }
+
+  .cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1em;
+    background: var(--green);
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* === SUBMIT VIEW === */
+  #submit-view { animation: fadeIn 0.4s ease; }
+
+  .prompt-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--dim-green);
+  }
+
+  .prompt-line .ps1 { color: var(--cyan); }
+
+  textarea {
+    width: 100%;
+    min-height: 320px;
+    background: #050505;
+    border: 1px solid var(--dim-green);
+    border-left: 3px solid var(--green);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 1rem;
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 12px rgba(0,255,65,0.2), inset 0 0 8px rgba(0,255,65,0.05);
+  }
+
+  textarea::placeholder { color: #1a4d1a; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .char-count { font-size: 0.72rem; color: #2a6b2a; }
+  .char-count.warn { color: var(--yellow); }
+
+  button {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 0.6rem 1.8rem;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  button::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0,255,65,0.15), transparent);
+    transition: left 0.3s;
+  }
+
+  button:hover::before { left: 100%; }
+
+  button:hover {
+    background: rgba(0,255,65,0.1);
+    box-shadow: 0 0 15px rgba(0,255,65,0.3);
+    text-shadow: 0 0 8px var(--green);
+  }
+
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-danger {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .btn-danger:hover {
+    background: rgba(255,0,60,0.1);
+    box-shadow: 0 0 15px rgba(255,0,60,0.3);
+    text-shadow: 0 0 8px var(--red);
+  }
+
+  /* === SUCCESS STATE === */
+  #success-box {
+    display: none;
+    border: 1px solid var(--green);
+    border-left: 4px solid var(--green);
+    background: rgba(0,255,65,0.04);
+    padding: 1.25rem 1.5rem;
+    margin-top: 1.5rem;
+    animation: slide-in 0.35s ease;
+  }
+
+  #success-box.visible { display: block; }
+
+  .success-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    color: var(--dim-green);
+    margin-bottom: 0.75rem;
+  }
+
+  .permalink-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  #permalink {
+    flex: 1;
+    min-width: 0;
+    background: #050505;
+    border: 1px solid var(--dim-green);
+    color: var(--cyan);
+    font-family: inherit;
+    font-size: 0.9rem;
+    padding: 0.55rem 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    outline: none;
+    cursor: text;
+  }
+
+  .copy-btn {
+    padding: 0.55rem 1rem;
+    font-size: 0.8rem;
+    border-color: var(--cyan);
+    color: var(--cyan);
+    white-space: nowrap;
+  }
+
+  .copy-btn:hover {
+    background: rgba(0,229,255,0.1);
+    box-shadow: 0 0 12px rgba(0,229,255,0.25);
+  }
+
+  .hash-display {
+    margin-top: 0.75rem;
+    font-size: 0.68rem;
+    color: #1e5c1e;
+    word-break: break-all;
+  }
+
+  .hash-display span { color: #2d8a2d; }
+
+  /* === VIEW MODE === */
+  #view-mode {
+    display: none;
+    animation: fadeIn 0.4s ease;
+  }
+
+  #view-mode.visible { display: block; }
+
+  .view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .view-meta {
+    font-size: 0.72rem;
+    color: var(--dim-green);
+    letter-spacing: 0.15em;
+  }
+
+  .view-meta .hash-id {
+    color: var(--cyan);
+    font-size: 0.65rem;
+    display: block;
+    margin-top: 0.2rem;
+    opacity: 0.7;
+  }
+
+  #content-display {
+    background: #050505;
+    border: 1px solid var(--dim-green);
+    border-left: 3px solid var(--green);
+    color: #c8ffc8;
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 1.25rem;
+    min-height: 200px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .loading-text {
+    color: var(--dim-green);
+    font-size: 0.9rem;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+
+  .error-box {
+    border: 1px solid var(--red);
+    border-left: 3px solid var(--red);
+    background: rgba(255,0,60,0.05);
+    color: var(--red);
+    padding: 1rem 1.25rem;
+    font-size: 0.88rem;
+    animation: slide-in 0.3s ease;
+  }
+
+  .error-box::before { content: '[ERROR] '; color: var(--red); font-weight: bold; }
+
+  /* === NOISE/DECORATION === */
+  .divider {
+    border: none;
+    border-top: 1px solid #1a3d1a;
+    margin: 2rem 0;
+  }
+
+  .sys-info {
+    font-size: 0.65rem;
+    color: #1a3d1a;
+    letter-spacing: 0.1em;
+    margin-top: 2.5rem;
+  }
+
+  .sys-info p { margin-bottom: 0.2rem; }
+  .sys-info .accent { color: #2a5c2a; }
+
+  #toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: var(--dark-green);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 0.6rem 1.2rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s;
+    pointer-events: none;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Glitch on logo hover */
+  .logo:hover {
+    animation: glitch 0.3s steps(1) infinite, pulse-glow 3s ease-in-out infinite;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="matrix-bg"></canvas>
+
+<div class="container">
+  <header>
+    <div class="logo"><span class="bracket">[</span>PASTE_0x<span class="bracket">]</span> <span class="cursor"></span></div>
+    <div class="tagline">// ANONYMOUS TEXT SHARING PROTOCOL</div>
+    <div class="status-bar">
+      <span>SYSTEM ONLINE</span>
+      <span>ENCRYPTED STORAGE</span>
+      <span id="uptime-display">UPTIME: 00:00:00</span>
+    </div>
+  </header>
+
+  <!-- SUBMIT VIEW -->
+  <div id="submit-view">
+    <div class="prompt-line">
+      <span class="ps1">root@paste_0x:~$</span>
+      <span>cat &gt; stdin.txt</span>
+    </div>
+    <textarea id="text-input"
+      placeholder="> paste your text here...
+> any content, any length
+> encrypted · anonymous · permanent"
+      autofocus
+      spellcheck="false"
+    ></textarea>
+    <div class="controls">
+      <span class="char-count" id="char-count">0 bytes</span>
+      <button id="submit-btn" onclick="submitText()">[ TRANSMIT ]</button>
+    </div>
+
+    <div id="success-box">
+      <div class="success-label">// TRANSMISSION SUCCESSFUL — PERMALINK GENERATED</div>
+      <div class="permalink-row">
+        <input id="permalink" type="text" readonly onclick="this.select()" />
+        <button class="copy-btn" onclick="copyLink()">[ COPY ]</button>
+      </div>
+      <div class="hash-display">SHA-256: <span id="hash-display"></span></div>
+    </div>
+  </div>
+
+  <!-- VIEW MODE -->
+  <div id="view-mode">
+    <div class="view-header">
+      <div class="view-meta">
+        // RETRIEVED TRANSMISSION
+        <span class="hash-id" id="viewing-hash"></span>
+      </div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <button class="copy-btn" style="border-color:var(--cyan);color:var(--cyan)" onclick="copyContent()">[ COPY TEXT ]</button>
+        <button class="btn-danger" onclick="newPaste()">[ NEW PASTE ]</button>
+      </div>
+    </div>
+    <div id="content-display"><span class="loading-text">loading transmission...</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sys-info">
+    <p><span class="accent">PASTE_0x</span> :: anonymous text storage node</p>
+    <p>protocol: SHA-256 · transport: HTTP/1.1 · storage: volatile in-memory</p>
+    <p>warning: <span class="accent">data persists until server restart</span></p>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// === Matrix rain background ===
+const canvas = document.getElementById('matrix-bg');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
+const cols = Math.floor(window.innerWidth / 18);
+const drops = Array(cols).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(13,13,13,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#003b00';
+  ctx.font = '13px monospace';
+  for (let i = 0; i < drops.length; i++) {
+    const c = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillText(c, i * 18, drops[i] * 18);
+    if (drops[i] * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  }
+}
+setInterval(drawMatrix, 55);
+
+// === Uptime counter ===
+const startTime = Date.now();
+setInterval(() => {
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  const h = String(Math.floor(s / 3600)).padStart(2, '0');
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  document.getElementById('uptime-display').textContent = `UPTIME: ${h}:${m}:${sec}`;
+}, 1000);
+
+// === Char counter ===
+const textInput = document.getElementById('text-input');
+const charCount = document.getElementById('char-count');
+textInput.addEventListener('input', () => {
+  const n = textInput.value.length;
+  charCount.textContent = n.toLocaleString() + ' bytes';
+  charCount.className = 'char-count' + (n > 50000 ? ' warn' : '');
+});
+
+// === Routing: check URL hash for view mode ===
+const API = '';
+
+function getHashFromUrl() {
+  const h = window.location.hash.slice(1);
+  return /^[a-f0-9]{64}$/.test(h) ? h : null;
+}
+
+async function loadContent(hash) {
+  document.getElementById('submit-view').style.display = 'none';
+  const vm = document.getElementById('view-mode');
+  vm.classList.add('visible');
+  document.getElementById('viewing-hash').textContent = hash;
+  document.title = `PASTE_0x :: ${hash.slice(0, 12)}...`;
+
+  const display = document.getElementById('content-display');
+  try {
+    const res = await fetch(`${API}/content/${hash}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    display.textContent = text;
+    display.style.animation = 'none';
+    void display.offsetWidth;
+    display.style.animation = 'fadeIn 0.5s ease';
+  } catch (e) {
+    display.innerHTML = `<div class="error-box">Failed to retrieve transmission: ${e.message}</div>`;
+  }
+}
+
+async function submitText() {
+  const text = textInput.value.trim();
+  if (!text) { showToast('// ERROR: empty transmission rejected'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '[ TRANSMITTING... ]';
+
+  try {
+    const res = await fetch(`${API}/content`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // data.url = "/content/<hash>"
+    const hash = data.url.split('/').pop();
+
+    const permalink = `${window.location.origin}/#${hash}`;
+    document.getElementById('permalink').value = permalink;
+    document.getElementById('hash-display').textContent = hash;
+
+    const box = document.getElementById('success-box');
+    box.classList.add('visible');
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    showToast('// TRANSMISSION STORED · PERMALINK READY');
+  } catch (e) {
+    showToast(`// TRANSMISSION FAILED: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '[ TRANSMIT ]';
+  }
+}
+
+function copyLink() {
+  const val = document.getElementById('permalink').value;
+  navigator.clipboard.writeText(val).then(() => showToast('// PERMALINK COPIED TO CLIPBOARD'));
+}
+
+function copyContent() {
+  const val = document.getElementById('content-display').textContent;
+  navigator.clipboard.writeText(val).then(() => showToast('// CONTENT COPIED TO CLIPBOARD'));
+}
+
+function newPaste() {
+  history.pushState('', document.title, window.location.pathname);
+  document.getElementById('view-mode').classList.remove('visible');
+  document.getElementById('submit-view').style.display = 'block';
+  document.title = 'PASTEBIN_0x';
+  textInput.value = '';
+  charCount.textContent = '0 bytes';
+  document.getElementById('success-box').classList.remove('visible');
+  textInput.focus();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Handle back/forward navigation
+window.addEventListener('hashchange', () => {
+  const h = getHashFromUrl();
+  if (h) loadContent(h); else newPaste();
+});
+
+// Init
+const initHash = getHashFromUrl();
+if (initHash) {
+  loadContent(initHash);
+}
+
+// Allow Ctrl+Enter to submit
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitText();
+});
+</script>
+</body>
+</html>
