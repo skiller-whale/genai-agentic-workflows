@@ -293,6 +293,33 @@ describe("Server API", () => {
     });
   });
 
+  describe("GET /content/:hash", () => {
+    test("should return the stored text for a valid hash", async () => {
+      const text = "Hello, world!";
+
+      const postResponse = await fetch(`${BASE_URL}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const { url } = await postResponse.json();
+
+      const getResponse = await fetch(`${BASE_URL}${url}`);
+
+      expect(getResponse.status).toBe(200);
+      expect(getResponse.headers.get("Content-Type")).toMatch(/^text\/plain/);
+      expect(await getResponse.text()).toBe(text);
+    });
+
+    test("should return 404 for an unknown hash", async () => {
+      const response = await fetch(`${BASE_URL}/content/${"0".repeat(64)}`);
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data).toHaveProperty("error");
+    });
+  });
+
   describe("Unknown routes", () => {
     test("should return 404 for unknown GET routes", async () => {
       const response = await fetch(`${BASE_URL}/unknown`);
