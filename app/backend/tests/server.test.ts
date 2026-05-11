@@ -197,6 +197,102 @@ describe("Server API", () => {
     });
   });
 
+  describe("POST /content", () => {
+    test("should return a URL for valid text input", async () => {
+      const response = await fetch(`${BASE_URL}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Hello, world!" }),
+      });
+
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty("url");
+      expect(data.url).toMatch(/^\/content\/[a-f0-9]{64}$/);
+    });
+
+    test("should return the same URL for the same text", async () => {
+      const body = JSON.stringify({ text: "consistent text" });
+      const opts = { method: "POST", headers: { "Content-Type": "application/json" }, body };
+
+      const [r1, r2] = await Promise.all([
+        fetch(`${BASE_URL}/content`, opts),
+        fetch(`${BASE_URL}/content`, opts),
+      ]);
+
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+
+      expect(d1.url).toBe(d2.url);
+    });
+
+    test("should return different URLs for different text", async () => {
+      const makeRequest = (text: string) =>
+        fetch(`${BASE_URL}/content`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+      const [r1, r2] = await Promise.all([makeRequest("foo"), makeRequest("bar")]);
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+
+      expect(d1.url).not.toBe(d2.url);
+    });
+
+    test("should reject a body missing the text field", async () => {
+      const response = await fetch(`${BASE_URL}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notText: "oops" }),
+      });
+
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data).toHaveProperty("error");
+    });
+
+    test("should reject a non-string text value", async () => {
+      const response = await fetch(`${BASE_URL}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: 42 }),
+      });
+
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data).toHaveProperty("error");
+    });
+
+    test("should reject invalid JSON", async () => {
+      const response = await fetch(`${BASE_URL}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "not json{",
+      });
+
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data).toHaveProperty("error");
+    });
+
+    test("should reject arrays", async () => {
+      const response = await fetch(`${BASE_URL}/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(["Hello, world!"]),
+      });
+
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data).toHaveProperty("error");
+    });
+  });
+
   describe("Unknown routes", () => {
     test("should return 404 for unknown GET routes", async () => {
       const response = await fetch(`${BASE_URL}/unknown`);

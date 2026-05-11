@@ -53,6 +53,41 @@ const server = Bun.serve({
       }
     }
 
+    // Content endpoint
+    if (url.pathname === "/content" && req.method === "POST") {
+      try {
+        const body = await req.json();
+
+        if (!isValidData(body)) {
+          return new Response(
+            JSON.stringify({ error: "Invalid request body. Must be a JSON object." }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        const { text } = body as Record<string, unknown>;
+
+        if (typeof text !== "string") {
+          return new Response(
+            JSON.stringify({ error: "Invalid request body. 'text' must be a string." }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        const hash = hashWithSalt({ text }, SECRET_SALT);
+
+        return new Response(JSON.stringify({ url: `/content/${hash}` }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "Invalid JSON in request body" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // 404 for unknown routes
     return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
