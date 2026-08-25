@@ -22,6 +22,17 @@ Build a quick, visually impressive frontend that connects to the backend API, an
 4. Serve the frontend using Bun on `0.0.0.0:4005`. Use `Bun.serve` to serve
    `index.html` (and any other static files) from the `frontend/` directory.
    Do not export the return value of `Bun.serve`.
+
+   The page is opened through a proxy, on a hostname that is not `localhost`, so:
+
+   - If you import HTML files and hand them to `routes`, also set
+     `development: false`. Bun's dev server otherwise refuses any request whose
+     `Host` header is not the host it is serving on, and the page 403s with
+     "Blocked: Host header does not match the dev server".
+   - Never call `http://localhost:4000` from browser JavaScript. The browser is
+     not on this machine, so that request goes nowhere and the page fails with
+     "Failed to fetch". Fetch a path on the frontend's own origin, such as
+     `/api/content`, and have the frontend server forward it to the backend.
 5. Start the server as a background process.
 6. Print the following line to the terminal once the server is running:
 
