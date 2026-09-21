@@ -35,5 +35,5 @@ git worktree remove --force "$CHECKPOINTS_DIR" 2> /dev/null || true
 echo
 echo "Checkpoint '$CHECKPOINT' loaded successfully."
 echo "For good results, now:"
-echo "  1. Close and reopen all claudes and terminals."
+echo "  1. Terminate any running claude agents."
 echo "  2. Click refresh in the file explorer."
