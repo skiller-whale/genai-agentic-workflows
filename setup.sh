@@ -56,6 +56,18 @@ if match:
   3. Answer y, then start claude again."""}))
 EOF
 
+# Stop prompts pasted from the slides with the placeholder still in
+cat << 'EOF' > /home/learner/.claude/hooks/placeholder-guard.py
+import json, re, sys
+
+prompt = json.load(sys.stdin).get("prompt", "")
+if re.search(r"your\s+style\s+here", prompt, re.IGNORECASE):
+    print(json.dumps({"decision": "block", "reason": """Your prompt still has the <YOUR STYLE HERE> placeholder in it.
+  1. Press the up arrow to get your prompt back (or paste it again).
+  2. Replace <YOUR STYLE HERE> with a style of your choice, e.g. 1990s GeoCities.
+  3. Press Enter to send it."""}))
+EOF
+
 # Start learners in auto mode. This has to be user settings — `auto` is
 # ignored from a project's .claude/settings.json.
 cat << 'EOF' > /home/learner/.claude/settings.json
@@ -70,6 +82,10 @@ cat << 'EOF' > /home/learner/.claude/settings.json
                     {
                         "type": "command",
                         "command": "python3 /home/learner/.claude/hooks/checkpoint-guard.py"
+                    },
+                    {
+                        "type": "command",
+                        "command": "python3 /home/learner/.claude/hooks/placeholder-guard.py"
                     }
                 ]
             }
